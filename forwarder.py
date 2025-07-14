@@ -37,7 +37,7 @@ def handler(client_socket):
 def start_forwarder():
     # Set ngrok token and start tunnel
     ngrok.set_auth_token(AUTH_TOKEN)
-    tunnel = ngrok.connect(addr=LOCAL_PORT, proto="tcp")
+    tunnel = ngrok.connect(LOCAL_PORT, "tcp")
     print(f"🌐 Ngrok tunnel → {tunnel.public_url} ⇢ localhost:{LOCAL_PORT}")
 
     # Start listening locally to forward to target IP:port
