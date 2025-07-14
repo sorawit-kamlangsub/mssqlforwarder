@@ -1,10 +1,10 @@
-# Dockerfile for Ngrok‑enabled MSSQL forwarder
-FROM python:3.11‑slim
+# Dockerfile for Ngrok-enabled MSSQL forwarder
+FROM python:3.11-slim
 
 WORKDIR /app
 COPY forwarder.py .
 
-# ⬇️  install every dependency the script needs
+# Install all required Python dependencies
 RUN pip install --no-cache-dir pyngrok python-dotenv requests
 
 EXPOSE 1433
