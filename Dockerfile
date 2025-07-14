@@ -1,13 +1,11 @@
 # Dockerfile for Ngrok‑enabled MSSQL forwarder
-FROM python:3.11-slim
+FROM python:3.11‑slim
 
 WORKDIR /app
 COPY forwarder.py .
 
-# Install dependencies
-RUN pip install --no-cache-dir pyngrok python-dotenv
+# ⬇️  install every dependency the script needs
+RUN pip install --no-cache-dir pyngrok python-dotenv requests
 
-# Listen on the same port we’ll expose (default 1433)
 EXPOSE 1433
-
 CMD ["python", "forwarder.py"]
