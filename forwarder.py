@@ -1,37 +1,39 @@
-#!/usr/bin/env python3
-"""
-Expose a remote SQL Server (or any TCP service) through a local forwarder
-plus an Ngrok TCP tunnel.
-
-• Listens on LOCAL_PORT (default 1433) inside the container/host.
-• Forwards every connection to TARGET_IP:TARGET_PORT.
-• Starts an Ngrok tunnel that maps a public TCP address → LOCAL_PORT.
-• Prints the public Ngrok URL and streams basic connection logs.
-
-Configuration is taken from environment variables or a .env file:
-    NGROK_AUTHTOKEN  (required) – your Ngrok token
-    LOCAL_PORT       (optional) – local listen port, default 1433
-    TARGET_IP        (optional) – upstream server IP, default 147.50.150.227
-    TARGET_PORT      (optional) – upstream port, default 1433
-"""
-
-import os, socket, threading, time, sys
+import os
+import socket
+import threading
+import time
+import sys
+import requests
 from pyngrok import ngrok
 from dotenv import load_dotenv
 
-# ─────────────────────────────────────────────────────────────────────
-load_dotenv()  # read values from .env if present
-# ─────────────────────────────────────────────────────────────────────
+load_dotenv()
 
-LOCAL_PORT   = int(os.getenv("LOCAL_PORT",   1433))
-TARGET_IP    = os.getenv("TARGET_IP",       "147.50.150.227")
-TARGET_PORT  = int(os.getenv("TARGET_PORT", 1433))
-AUTH_TOKEN   = os.getenv("NGROK_AUTHTOKEN")
+LOCAL_PORT = int(os.getenv("LOCAL_PORT", 1433))
+TARGET_IP = os.getenv("TARGET_IP", "147.50.150.227")
+TARGET_PORT = int(os.getenv("TARGET_PORT", 1433))
+AUTH_TOKEN = os.getenv("NGROK_AUTHTOKEN")
+
+BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 
 if not AUTH_TOKEN:
     sys.exit("❌  Set NGROK_AUTHTOKEN in the environment or .env file")
 
-# ──────────────────────────  TCP forwarder  ─────────────────────────
+def send_telegram_message(text):
+    if not BOT_TOKEN or not CHAT_ID:
+        print("[!] Telegram bot token or chat id not set, skipping notification")
+        return
+    url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
+    payload = {"chat_id": CHAT_ID, "text": text}
+    try:
+        r = requests.post(url, data=payload, timeout=10)
+        if r.status_code == 200:
+            print("[✓] Telegram notification sent")
+        else:
+            print(f"[!] Telegram API returned {r.status_code}: {r.text}")
+    except Exception as e:
+        print(f"[!] Telegram send error: {e}")
 
 def pipe(src, dst):
     try:
@@ -65,18 +67,28 @@ def start_forwarder():
         client, addr = listener.accept()
         threading.Thread(target=handle_client, args=(client, addr), daemon=True).start()
 
-# ─────────────────────────────  main  ───────────────────────────────
+def monitor_tunnel(tunnel):
+    last_url = None
+    while True:
+        current_url = tunnel.public_url
+        if current_url != last_url:
+            msg = f"🚨 Ngrok tunnel URL updated:\n{current_url}"
+            print(msg)
+            send_telegram_message(msg)
+            last_url = current_url
+        time.sleep(60)  # check every 60 seconds
 
 def main():
-    # 1️⃣  Start forwarder in background
     threading.Thread(target=start_forwarder, daemon=True).start()
 
-    # 2️⃣  Create Ngrok tunnel
     ngrok.set_auth_token(AUTH_TOKEN)
     tunnel = ngrok.connect(addr=LOCAL_PORT, proto="tcp")
     print(f"🌐  Ngrok tunnel →  {tunnel.public_url}  ⇢  localhost:{LOCAL_PORT}")
 
-    # 3️⃣  Keep process alive
+    send_telegram_message(f"🚀 Ngrok tunnel started:\n{tunnel.public_url}")
+
+    threading.Thread(target=monitor_tunnel, args=(tunnel,), daemon=True).start()
+
     try:
         while True:
             time.sleep(3600)
