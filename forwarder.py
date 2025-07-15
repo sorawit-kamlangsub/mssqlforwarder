@@ -1,55 +1,34 @@
+# forwarder.py
 import os, socket, threading, sys
 from pyngrok import ngrok
 from dotenv import load_dotenv
 
-# ── load .env ────────────────────────────────────────────────────────────────
-load_dotenv()
-LOCAL_PORT      = int(os.getenv("LOCAL_PORT", 1433))
-TARGET_IP       = os.getenv("TARGET_IP", "147.50.150.227")
-TARGET_PORT     = int(os.getenv("TARGET_PORT", 1433))
-NGROK_TOKEN     = os.getenv("NGROK_AUTHTOKEN")
-TELEGRAM_BOT_TOKEN     = os.getenv("TELEGRAM_BOT_TOKEN")
+LOCAL_PORT = 1433
+TARGET_IP = "147.50.150.227"
+TARGET_PORT = 1433
 
-print(f"env NGROK_TOKEN : {NGROK_TOKEN} TELEGRAM_BOT_TOKEN : {TELEGRAM_BOT_TOKEN}")
-if not NGROK_TOKEN:
-    sys.exit("NGROK_AUTHTOKEN missing in env")
+def forward(src, dst):
+    while True:
+        data = src.recv(4096)
+        if not data:
+            break
+        dst.sendall(data)
 
-# ── start ngrok exactly once ────────────────────────────────────────────────
-try:
-    ngrok.set_auth_token("2VLMZ4oBIu3VXGKWhP5SNkaXEbh_27rMTdT2efum4AzpZJDis")          # ← ONE single call
-    tunnel = ngrok.connect(1433, "tcp")  # ← ONE single tunnel
-    print(f"Ngrok tunnel → {tunnel.public_url} ⇢ localhost:{LOCAL_PORT}")
-except (Exception) as e:
-    sys.exit(f"Can't start ngrok tunnel: {e}")
+def handler(client_socket):
+    server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    server_socket.connect((TARGET_IP, TARGET_PORT))
 
-# ── set up listener ─────────────────────────────────────────────────────────
-listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-listener.bind(("0.0.0.0", LOCAL_PORT))
-listener.listen(50)
-print(f"Waiting for connections on 0.0.0.0:{LOCAL_PORT} …")
+    threading.Thread(target=forward, args=(client_socket, server_socket)).start()
+    threading.Thread(target=forward, args=(server_socket, client_socket)).start()
 
-# ── helper to pipe data ─────────────────────────────────────────────────────
-def pipe(src, dst):
-    try:
-        while True:
-            data = src.recv(4096)
-            if not data:
-                break
-            dst.sendall(data)
-    finally:
-        src.close()
-        dst.close()
+def main():
+    listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    listener.bind(('0.0.0.0', LOCAL_PORT))
+    listener.listen(5)
+    print(f"Forwarding localhost:{LOCAL_PORT} -> {TARGET_IP}:{TARGET_PORT}")
 
-# ── main loop ───────────────────────────────────────────────────────────────
-while True:
-    client, addr = listener.accept()
-    print(f"Accepted {addr}")
-    try:
-        server = socket.create_connection((TARGET_IP, TARGET_PORT))
-    except Exception as err:
-        print(f"Can't reach {TARGET_IP}:{TARGET_PORT} – {err}")
-        client.close()
-        continue
-    threading.Thread(target=pipe, args=(client, server), daemon=True).start()
-    threading.Thread(target=pipe, args=(server, client), daemon=True).start()
+    while True:
+        client_socket, _ = listener.accept()
+        threading.Thread(target=handler, args=(client_socket,)).start()
+
+main()
