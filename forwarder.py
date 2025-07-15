@@ -81,6 +81,6 @@ while True:
         client_socket.close()
         continue
 
-    Print("Start Socket ...")
+    print("Start Socket ...")
     threading.Thread(target=forward, args=(client_socket, server_socket), daemon=True).start()
     threading.Thread(target=forward, args=(server_socket, client_socket), daemon=True).start()
