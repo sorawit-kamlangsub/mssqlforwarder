@@ -40,11 +40,11 @@ try:
 
     ngrok.set_auth_token(NGROK_AUTHTOKEN)
     tunnel = ngrok.connect(addr=LOCAL_PORT, proto="tcp")  # may raise PyngrokError
-    print(f"🌐  Ngrok tunnel → {tunnel.public_url}  ⇢  localhost:{LOCAL_PORT}")
+    print(f" Ngrok tunnel → {tunnel.public_url}  ⇢  localhost:{LOCAL_PORT}")
     send_telegram_message(f"🚀 Ngrok tunnel started:\n{tunnel.public_url}")
 
 except (PyngrokError, ValueError) as err:
-    print(f"❌  Failed to start ngrok tunnel: {err}")
+    print(f"  Failed to start ngrok tunnel: {err}")
     sys.exit(1)
 
 send_telegram_message(f"🚀 Ngrok tunnel started:\n{tunnel.public_url}")
