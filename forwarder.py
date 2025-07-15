@@ -13,8 +13,8 @@ LOCAL_PORT = int(os.getenv("LOCAL_PORT", 1433))
 TARGET_IP = os.getenv("TARGET_IP", "147.50.150.227")
 TARGET_PORT = int(os.getenv("TARGET_PORT", 1433))
 NGROK_AUTHTOKEN = os.getenv("NGROK_AUTHTOKEN")
-# TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
-# TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
+TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 
 # Optional: Telegram messaging (commented out if you don't want Telegram)
 def send_telegram_message(message):
@@ -31,7 +31,7 @@ def send_telegram_message(message):
     pass
 
 # Start
-print("Start")
+print(f"Start With NGROK_AUTHTOKEN = {NGROK_AUTHTOKEN} TELEGRAM_BOT_TOKEN = {TELEGRAM_BOT_TOKEN}")
 
 # Set ngrok token and start tunnel
 ngrok.set_auth_token(NGROK_AUTHTOKEN)
