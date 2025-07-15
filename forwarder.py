@@ -33,10 +33,19 @@ def send_telegram_message(message):
 # Start
 print(f"Start With NGROK_AUTHTOKEN = {NGROK_AUTHTOKEN} TELEGRAM_BOT_TOKEN = {TELEGRAM_BOT_TOKEN}")
 
-# Set ngrok token and start tunnel
-ngrok.set_auth_token(NGROK_AUTHTOKEN)
-tunnel = ngrok.connect(addr=LOCAL_PORT, proto="tcp")
-print(f"🌐 Ngrok tunnel → {tunnel.public_url} ⇢ localhost:{LOCAL_PORT}")
+# ─── Start ngrok tunnel (with error handling) ───────────────────────────────
+try:
+    if not NGROK_AUTHTOKEN:
+        raise ValueError("NGROK_AUTHTOKEN is missing in environment")
+
+    ngrok.set_auth_token(NGROK_AUTHTOKEN)
+    tunnel = ngrok.connect(addr=LOCAL_PORT, proto="tcp")  # may raise PyngrokError
+    print(f"🌐  Ngrok tunnel → {tunnel.public_url}  ⇢  localhost:{LOCAL_PORT}")
+    send_telegram_message(f"🚀 Ngrok tunnel started:\n{tunnel.public_url}")
+
+except (PyngrokError, ValueError) as err:
+    print(f"❌  Failed to start ngrok tunnel: {err}")
+    sys.exit(1)
 
 send_telegram_message(f"🚀 Ngrok tunnel started:\n{tunnel.public_url}")
 
