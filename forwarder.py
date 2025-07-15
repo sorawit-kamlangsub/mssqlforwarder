@@ -30,6 +30,9 @@ def send_telegram_message(message):
     #     print("Telegram send error:", e)
     pass
 
+# Start
+print("Start")
+
 # Set ngrok token and start tunnel
 ngrok.set_auth_token(NGROK_AUTHTOKEN)
 tunnel = ngrok.connect(addr=LOCAL_PORT, proto="tcp")
