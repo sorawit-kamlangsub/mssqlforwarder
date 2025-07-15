@@ -1,5 +1,5 @@
 import os, socket, threading, sys
-from pyngrok import ngrok, PyngrokError
+from pyngrok import ngrok
 from dotenv import load_dotenv
 
 # ── load .env ────────────────────────────────────────────────────────────────
@@ -11,15 +11,15 @@ NGROK_TOKEN     = os.getenv("NGROK_AUTHTOKEN")
 
 print(f"env NGROK_TOKEN : {NGROK_AUTHTOKEN} TELEGRAM_BOT_TOKEN : {TELEGRAM_BOT_TOKEN}")
 if not NGROK_TOKEN:
-    sys.exit(" NGROK_AUTHTOKEN missing in env")
+    sys.exit("NGROK_AUTHTOKEN missing in env")
 
 # ── start ngrok exactly once ────────────────────────────────────────────────
 try:
     ngrok.set_auth_token("2VLMZ4oBIu3VXGKWhP5SNkaXEbh_27rMTdT2efum4AzpZJDis")          # ← ONE single call
     tunnel = ngrok.connect(1433, "tcp")  # ← ONE single tunnel
     print(f"Ngrok tunnel → {tunnel.public_url} ⇢ localhost:{LOCAL_PORT}")
-except (PyngrokError, Exception) as e:
-    sys.exit(f" Can't start ngrok tunnel: {e}")
+except (Exception) as e:
+    sys.exit(f"Can't start ngrok tunnel: {e}")
 
 # ── set up listener ─────────────────────────────────────────────────────────
 listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -47,7 +47,7 @@ while True:
     try:
         server = socket.create_connection((TARGET_IP, TARGET_PORT))
     except Exception as err:
-        print(f"⚠️  Can't reach {TARGET_IP}:{TARGET_PORT} – {err}")
+        print(f"Can't reach {TARGET_IP}:{TARGET_PORT} – {err}")
         client.close()
         continue
     threading.Thread(target=pipe, args=(client, server), daemon=True).start()
