@@ -33,22 +33,6 @@ def send_telegram_message(message):
 # Start
 print(f"Start With NGROK_AUTHTOKEN = {NGROK_AUTHTOKEN} TELEGRAM_BOT_TOKEN = {TELEGRAM_BOT_TOKEN}")
 
-# ─── Start ngrok tunnel (with error handling) ───────────────────────────────
-try:
-    if not NGROK_AUTHTOKEN:
-        raise ValueError("NGROK_AUTHTOKEN is missing in environment")
-
-    ngrok.set_auth_token(NGROK_AUTHTOKEN)
-    tunnel = ngrok.connect(addr=LOCAL_PORT, proto="tcp")  # may raise PyngrokError
-    print(f" Ngrok tunnel → {tunnel.public_url}  ⇢  localhost:{LOCAL_PORT}")
-    send_telegram_message(f"🚀 Ngrok tunnel started:\n{tunnel.public_url}")
-
-except (PyngrokError, ValueError) as err:
-    print(f"  Failed to start ngrok tunnel: {err}")
-    sys.exit(1)
-
-send_telegram_message(f"🚀 Ngrok tunnel started:\n{tunnel.public_url}")
-
 # Socket forwarding logic inline
 
 listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -58,6 +42,24 @@ listener.listen(5)
 print(f"Waiting for connections on 0.0.0.0:{LOCAL_PORT}...")
 
 def forward(src, dst):
+
+    # ─── Start ngrok tunnel (with error handling) ───────────────────────────────
+    try:
+        if not NGROK_AUTHTOKEN:
+            raise ValueError("NGROK_AUTHTOKEN is missing in environment")
+    
+        ngrok.set_auth_token(NGROK_AUTHTOKEN)
+        tunnel = ngrok.connect(addr=LOCAL_PORT, proto="tcp")  # may raise PyngrokError
+        print(f" Ngrok tunnel → {tunnel.public_url}  ⇢  localhost:{LOCAL_PORT}")
+        send_telegram_message(f"🚀 Ngrok tunnel started:\n{tunnel.public_url}")
+    
+    except (PyngrokError, ValueError) as err:
+        print(f"  Failed to start ngrok tunnel: {err}")
+        sys.exit(1)
+    
+    send_telegram_message(f"🚀 Ngrok tunnel started:\n{tunnel.public_url}")
+    
+    print("Start Socket ...")
     while True:
         try:
             data = src.recv(4096)
@@ -81,6 +83,5 @@ while True:
         client_socket.close()
         continue
 
-    print("Start Socket ...")
     threading.Thread(target=forward, args=(client_socket, server_socket), daemon=True).start()
     threading.Thread(target=forward, args=(server_socket, client_socket), daemon=True).start()
