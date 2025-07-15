@@ -1,57 +1,73 @@
 import socket
 import threading
-from pyngrok import ngrok
+import time
 import os
+from pyngrok import ngrok
+from dotenv import load_dotenv
+import requests
 
-# Load config from environment variables
-AUTH_TOKEN = os.getenv("NGROK_AUTHTOKEN")
-LOCAL_PORT = int(os.getenv("LOCAL_PORT", "1433"))
+# Load env variables from .env file if present
+load_dotenv()
+
+LOCAL_PORT = int(os.getenv("LOCAL_PORT", 1433))
 TARGET_IP = os.getenv("TARGET_IP", "147.50.150.227")
-TARGET_PORT = int(os.getenv("TARGET_PORT", "1433"))
+TARGET_PORT = int(os.getenv("TARGET_PORT", 1433))
+NGROK_AUTHTOKEN = os.getenv("NGROK_AUTHTOKEN")
+# TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+# TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 
-if not AUTH_TOKEN:
-    print("Error: NGROK_AUTHTOKEN not set in environment")
-else:
-    def forward(src, dst):
+# Optional: Telegram messaging (commented out if you don't want Telegram)
+def send_telegram_message(message):
+    # Uncomment below to enable telegram
+    # if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
+    #     print("Telegram token or chat id not set.")
+    #     return
+    # url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
+    # data = {"chat_id": TELEGRAM_CHAT_ID, "text": message}
+    # try:
+    #     requests.post(url, data=data)
+    # except Exception as e:
+    #     print("Telegram send error:", e)
+    pass
+
+# Set ngrok token and start tunnel
+ngrok.set_auth_token(NGROK_AUTHTOKEN)
+tunnel = ngrok.connect(addr=LOCAL_PORT, proto="tcp")
+print(f"🌐 Ngrok tunnel → {tunnel.public_url} ⇢ localhost:{LOCAL_PORT}")
+
+send_telegram_message(f"🚀 Ngrok tunnel started:\n{tunnel.public_url}")
+
+# Socket forwarding logic inline
+
+listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+listener.bind(("0.0.0.0", LOCAL_PORT))
+listener.listen(5)
+print(f"Waiting for connections on 0.0.0.0:{LOCAL_PORT}...")
+
+def forward(src, dst):
+    while True:
         try:
-            while True:
-                data = src.recv(4096)
-                if not data:
-                    break
-                dst.sendall(data)
-        except Exception as e:
-            print(f"Forward error: {e}")
-        finally:
-            src.close()
-            dst.close()
+            data = src.recv(4096)
+            if not data:
+                break
+            dst.sendall(data)
+        except Exception:
+            break
+    src.close()
+    dst.close()
 
-    def handler(client_socket):
-        try:
-            server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            server_socket.connect((TARGET_IP, TARGET_PORT))
-
-            threading.Thread(target=forward, args=(client_socket, server_socket), daemon=True).start()
-            threading.Thread(target=forward, args=(server_socket, client_socket), daemon=True).start()
-        except Exception as e:
-            print(f"Handler error: {e}")
-            client_socket.close()
-
-    # Set ngrok token and start tunnel
-    ngrok.set_auth_token(AUTH_TOKEN)
-    tunnel = ngrok.connect(LOCAL_PORT, "tcp")
-    print(f"🌐 Ngrok tunnel → {tunnel.public_url} ⇢ localhost:{LOCAL_PORT}")
-
-    # Start listening locally to forward to target IP:port
-    listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    listener.bind(('0.0.0.0', LOCAL_PORT))
-    listener.listen(5)
-    print(f"Waiting for connections on 0.0.0.0:{LOCAL_PORT}...")
+while True:
+    client_socket, client_addr = listener.accept()
+    print(f"Accepted connection from {client_addr}")
 
     try:
-        while True:
-            client_socket, addr = listener.accept()
-            print(f"Accepted connection from {addr}")
-            handler(client_socket)
-    except KeyboardInterrupt:
-        print("Forwarder stopped by user.")
+        server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        server_socket.connect((TARGET_IP, TARGET_PORT))
+    except Exception as e:
+        print(f"Failed to connect to target {TARGET_IP}:{TARGET_PORT} - {e}")
+        client_socket.close()
+        continue
+
+    threading.Thread(target=forward, args=(client_socket, server_socket), daemon=True).start()
+    threading.Thread(target=forward, args=(server_socket, client_socket), daemon=True).start()
