@@ -8,8 +8,9 @@ LOCAL_PORT      = int(os.getenv("LOCAL_PORT", 1433))
 TARGET_IP       = os.getenv("TARGET_IP", "147.50.150.227")
 TARGET_PORT     = int(os.getenv("TARGET_PORT", 1433))
 NGROK_TOKEN     = os.getenv("NGROK_AUTHTOKEN")
+TELEGRAM_BOT_TOKEN     = os.getenv("TELEGRAM_BOT_TOKEN")
 
-print(f"env NGROK_TOKEN : {NGROK_AUTHTOKEN} TELEGRAM_BOT_TOKEN : {TELEGRAM_BOT_TOKEN}")
+print(f"env NGROK_TOKEN : {NGROK_TOKEN} TELEGRAM_BOT_TOKEN : {TELEGRAM_BOT_TOKEN}")
 if not NGROK_TOKEN:
     sys.exit("NGROK_AUTHTOKEN missing in env")
 
